@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON File Uploader</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #1e1e1e;
+      color: #ffffff;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    h2 {
+      color: #61dafb;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    #dropArea {
+      border: 2px dashed #61dafb;
+      padding: 40px;
+      margin: 20px 0;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 300px;
+      height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #dropArea p {
+      margin: 0;
+    }
+
+    #dropArea:hover {
+      background-color: #1a1a1a;
+    }
+
+    #uploadText {
+      color: #61dafb;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    #uploadText:hover {
+      text-decoration: underline;
+    }
+
+    #fileCount {
+      color: #61dafb;
+      margin-top: 10px;
+    }
+
+    #updateButton {
+      background-color: #61dafb;
+      color: #1e1e1e;
+      padding: 10px 20px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+
+    #updateButton:hover {
+      background-color: #4fa3d1;
+    }
+  </style>
+</head>
+<body>
+  <h2>SharpTimer PlayerStageData updater</h2>
+  <div id="dropArea" ondrop="handleDrop(event)" ondragover="handleDragOver(event)">
+    <p>Drag &amp; Drop JSON Files Here</p>
+  </div>
+  <input type="file" id="fileInput" multiple accept=".json" onchange="handleFileSelect(this.files)">
+  <div id="uploadText" onclick="document.getElementById('fileInput').click()">Click to Upload</div>
+  <div id="fileCount"></div>
+  <button id="updateButton" onclick="processFiles()">Click to Update Files</button>
+
+  <script>
+    function handleFileSelect(files) {
+      // Triggered when files are selected using the file input
+      handleFiles(files);
+    }
+
+    function handleDrop(event) {
+      // Triggered when files are dropped into the drop area
+      event.preventDefault();
+      const files = event.dataTransfer.files;
+      handleFiles(files);
+    }
+
+    function handleDragOver(event) {
+      // Prevent default behavior to enable drop
+      event.preventDefault();
+    }
+
+    function handleFiles(files) {
+      // Handle selected or dropped files
+      const fileInput = document.getElementById('fileInput');
+      fileInput.files = files;
+      updateFileCount(files.length);
+    }
+
+    function updateFileCount(count) {
+      const fileCount = document.getElementById('fileCount');
+      fileCount.textContent = count > 0 ? `Uploaded Files: ${count}` : '';
+    }
+
+    function processFiles() {
+      const fileInput = document.getElementById('fileInput');
+      const files = fileInput.files;
+
+      if (files.length === 0) {
+        alert('Please select at least one JSON file.');
+        return;
+      }
+
+      const zip = new JSZip();
+
+      for (const file of files) {
+        const reader = new FileReader();
+
+        reader.onload = function (event) {
+          try {
+            const jsonData = JSON.parse(event.target.result);
+            updateJsonStructure(jsonData);
+            zip.file(file.name, JSON.stringify(jsonData, null, 2));
+          } catch (error) {
+            console.error('Error processing file:', file.name, error);
+          }
+
+          if (Object.keys(zip.files).length === files.length) {
+            zip.generateAsync({ type: 'blob' })
+              .then(function (content) {
+                saveAs(content, 'updated_PlayerStageData_files.zip');
+              });
+          }
+        };
+
+        reader.readAsText(file);
+      }
+    }
+
+    function updateJsonStructure(jsonData) {
+      for (const key in jsonData) {
+        const stageRecords = jsonData[key].StageRecords;
+
+        if (stageRecords) {
+          jsonData[key].StageTimes = { ...stageRecords };
+          jsonData[key].StageVelos = {};
+
+          for (const stage in stageRecords) {
+            jsonData[key].StageVelos[stage] = "0";
+          }
+
+          delete jsonData[key].StageRecords;
+        }
+      }
+    }
+  </script>
+
+  <!-- JSZip library for creating zip files -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+  <!-- FileSaver.js for saving generated zip file -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</body>
+</html>
